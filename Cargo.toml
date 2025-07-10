@@ -38,7 +38,7 @@ rand = "0.8.5"
 rand_chacha = "0.3.1"
 dotenvy = "0.15.7"
 hex = "0.4.3"
-namada_sdk = { version = "0.149.1", default-features = false, features = [ "std", "async-send", "download-params"] }
+namada_sdk = { version = "0.150.2", default-features = false, features = [ "std", "async-send", "download-params"] }
 tendermint = {version = "0.40.3", features = ["secp256k1"]}
 tendermint-config = "0.40.3"
 tendermint-light-client = "0.40.3"
