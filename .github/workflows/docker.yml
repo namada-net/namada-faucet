@@ -49,7 +49,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v4
         with:
-          images: ghcr.io/heliaxdev/namada-faucet
+          images: ghcr.io/namada-net/namada-faucet
           tags: |
             type=schedule
             type=ref,event=branch
