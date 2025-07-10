@@ -4,7 +4,7 @@ use axum::{extract::State, Json};
 use axum_macros::debug_handler;
 use namada_sdk::{
     address::Address,
-    args::{InputAmount, TxTransparentTransferData},
+    args::{InputAmount, TxTransparentSource, TxTransparentTarget},
     io::NullIo,
     rpc,
     signing::default_sign,
@@ -119,14 +119,19 @@ pub async fn request_transfer(
     )
     .await;
 
-    let transfer = TxTransparentTransferData {
-        source: faucet_address,
-        target: target_address,
+    let sources = vec![TxTransparentSource {
+        source: faucet_address.clone(),
         token: token_address.clone(),
         amount: InputAmount::Unvalidated(denominated_amount),
-    };
+    }];
 
-    let mut transfer_tx_builder = state.sdk.new_transparent_transfer(vec![transfer]);
+    let targets = vec![TxTransparentTarget {
+        target: target_address.clone(),
+        token: token_address,
+        amount: InputAmount::Unvalidated(denominated_amount),
+    }];
+
+    let mut transfer_tx_builder = state.sdk.new_transparent_transfer(sources, targets);
 
     transfer_tx_builder.tx.memo = Some("Transfer from faucet".to_string().as_bytes().to_vec());
 
