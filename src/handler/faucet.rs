@@ -99,6 +99,19 @@ pub async fn request_transfer(
         return Err(FaucetError::InvalidPoW.into());
     }
 
+    if let Some(secret) = &state.turnstile_secret {
+        use reqwest::Client;
+        let client = Client::new();
+        let res = client.post("https://challenges.cloudflare.com/turnstile/v0/siteverify")
+            .form(&[("secret", secret), ("response", &payload.captcha_token)])
+            .send().await.map_err(|e| FaucetError::SdkError(e.to_string()))?;
+        let text = res.text().await.map_err(|e| FaucetError::SdkError(e.to_string()))?;
+        let json: serde_json::Value = serde_json::from_str(&text).map_err(|e| FaucetError::SdkError(e.to_string()))?;
+        if !json["success"].as_bool().unwrap_or(false) {
+            return Err(FaucetError::InvalidCaptcha.into());
+        }
+    }
+
     let faucet_address = state.faucet_address.clone();
 
     if let Ok(balance) =

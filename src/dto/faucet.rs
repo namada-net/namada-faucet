@@ -14,6 +14,8 @@ pub struct FaucetRequestDto {
     pub challenge: String,
     #[validate(length(equal = 64, message = "Invalid proof"))]
     pub tag: String,
+    #[validate(length(min = 1, message = "Invalid captcha token"))]
+    pub captcha_token: String,
     pub transfer: Transfer,
 }
 

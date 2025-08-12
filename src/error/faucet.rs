@@ -23,6 +23,8 @@ pub enum FaucetError {
     SdkError(String),
     #[error("Withdraw limit must be less then {0}")]
     InvalidWithdrawLimit(u64),
+    #[error("Invalid Captcha")]
+    InvalidCaptcha,
 }
 
 impl IntoResponse for FaucetError {
@@ -36,6 +38,7 @@ impl IntoResponse for FaucetError {
             FaucetError::InvalidWithdrawLimit(_) => StatusCode::BAD_REQUEST,
             FaucetError::FaucetOutOfBalance => StatusCode::CONFLICT,
             FaucetError::SdkError(_) => StatusCode::BAD_REQUEST,
+            FaucetError::InvalidCaptcha => StatusCode::BAD_REQUEST,
         };
 
         ApiErrorResponse::send(status_code.as_u16(), Some(self.to_string()))
