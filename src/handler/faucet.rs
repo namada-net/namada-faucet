@@ -99,16 +99,48 @@ pub async fn request_transfer(
         return Err(FaucetError::InvalidPoW.into());
     }
 
+    // Verify captcha if turnstile_secret is configured
     if let Some(secret) = &state.turnstile_secret {
+        // When secret is configured, captcha token MUST be provided
+        let captcha_token = payload.captcha_token.as_ref()
+            .ok_or_else(|| FaucetError::InvalidCaptcha)?;
+        
+        // Ensure captcha token is not empty
+        if captcha_token.trim().is_empty() {
+            return Err(FaucetError::InvalidCaptcha.into());
+        }
+        
         use reqwest::Client;
         let client = Client::new();
         let res = client.post("https://challenges.cloudflare.com/turnstile/v0/siteverify")
-            .form(&[("secret", secret), ("response", &payload.captcha_token)])
-            .send().await.map_err(|e| FaucetError::SdkError(e.to_string()))?;
-        let text = res.text().await.map_err(|e| FaucetError::SdkError(e.to_string()))?;
-        let json: serde_json::Value = serde_json::from_str(&text).map_err(|e| FaucetError::SdkError(e.to_string()))?;
+            .form(&[("secret", secret), ("response", captcha_token)])
+            .send().await.map_err(|e| FaucetError::SdkError(format!("Failed to verify captcha: {}", e)))?;
+        
+        if !res.status().is_success() {
+            return Err(FaucetError::SdkError(format!("Captcha verification failed with status: {}", res.status())).into());
+        }
+        
+        let text = res.text().await.map_err(|e| FaucetError::SdkError(format!("Failed to read captcha response: {}", e)))?;
+        let json: serde_json::Value = serde_json::from_str(&text).map_err(|e| FaucetError::SdkError(format!("Invalid captcha response format: {}", e)))?;
+        
+        // Check success field
         if !json["success"].as_bool().unwrap_or(false) {
+            // Log error codes if present for debugging
+            if let Some(error_codes) = json["error-codes"].as_array() {
+                let codes: Vec<String> = error_codes.iter()
+                    .filter_map(|v| v.as_str().map(String::from))
+                    .collect();
+                return Err(FaucetError::SdkError(format!("Captcha verification failed: {}", codes.join(", "))).into());
+            }
             return Err(FaucetError::InvalidCaptcha.into());
+        }
+    } else {
+        // If turnstile_secret is not configured but captcha_token is provided, warn but allow
+        // This is for backward compatibility during migration
+        if let Some(token) = &payload.captcha_token {
+            if !token.trim().is_empty() {
+                tracing::warn!("Captcha token provided but TURNSTILE_SECRET not configured");
+            }
         }
     }
 
