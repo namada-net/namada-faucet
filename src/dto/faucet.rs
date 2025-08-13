@@ -14,6 +14,8 @@ pub struct FaucetRequestDto {
     pub challenge: String,
     #[validate(length(equal = 64, message = "Invalid proof"))]
     pub tag: String,
+    // Make captcha_token optional to handle cases where TURNSTILE_SECRET is not configured
+    pub captcha_token: Option<String>,
     pub transfer: Transfer,
 }
 

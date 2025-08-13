@@ -113,6 +113,7 @@ impl ApplicationServer {
                 chain_id,
                 chain_start,
                 withdraw_limit,
+                config.turnstile_secret.clone(),
             );
 
             Router::new()
