@@ -25,9 +25,14 @@ use crate::{
 pub async fn faucet_settings(
     State(state): State<FaucetState>,
 ) -> Result<Json<FaucetSettingResponse>, ApiError> {
-    let nam_token_address = rpc::query_native_token(&state.sdk.clone_client())
+    let client = &state.sdk.clone_client();
+    
+    let nam_token_address = rpc::query_native_token(client).await.unwrap();
+    
+    let faucet_address = state.faucet_address.clone();
+    let faucet_balance = rpc::get_token_balance(client, &nam_token_address, &faucet_address, None)
         .await
-        .unwrap();
+        .unwrap_or_default();
 
     let response = FaucetSettingResponse {
         difficulty: state.difficulty,
@@ -35,6 +40,7 @@ pub async fn faucet_settings(
         start_at: state.chain_start,
         withdraw_limit: state.withdraw_limit,
         faucet_address: state.faucet_address.clone().to_string(),
+        balance: faucet_balance.to_string_native(),
         tokens_alias_to_address: HashMap::from([(
             "NAM".to_string(),
             nam_token_address.to_string(),
@@ -103,35 +109,53 @@ pub async fn request_transfer(
     // Verify captcha if turnstile_secret is configured
     if let Some(secret) = &state.turnstile_secret {
         // When secret is configured, captcha token MUST be provided
-        let captcha_token = payload.captcha_token.as_ref()
+        let captcha_token = payload
+            .captcha_token
+            .as_ref()
             .ok_or_else(|| FaucetError::InvalidCaptcha)?;
-        
+
         // Ensure captcha token is not empty
         if captcha_token.trim().is_empty() {
             return Err(FaucetError::InvalidCaptcha.into());
         }
-        
+
         use reqwest::Client;
         let client = Client::new();
-        let res = client.post("https://challenges.cloudflare.com/turnstile/v0/siteverify")
+        let res = client
+            .post("https://challenges.cloudflare.com/turnstile/v0/siteverify")
             .form(&[("secret", secret), ("response", captcha_token)])
-            .send().await.map_err(|e| FaucetError::SdkError(format!("Failed to verify captcha: {}", e)))?;
-        
+            .send()
+            .await
+            .map_err(|e| FaucetError::SdkError(format!("Failed to verify captcha: {}", e)))?;
+
         if !res.status().is_success() {
-            return Err(FaucetError::SdkError(format!("Captcha verification failed with status: {}", res.status())).into());
+            return Err(FaucetError::SdkError(format!(
+                "Captcha verification failed with status: {}",
+                res.status()
+            ))
+            .into());
         }
-        
-        let text = res.text().await.map_err(|e| FaucetError::SdkError(format!("Failed to read captcha response: {}", e)))?;
-        let json: serde_json::Value = serde_json::from_str(&text).map_err(|e| FaucetError::SdkError(format!("Invalid captcha response format: {}", e)))?;
-        
+
+        let text = res.text().await.map_err(|e| {
+            FaucetError::SdkError(format!("Failed to read captcha response: {}", e))
+        })?;
+        let json: serde_json::Value = serde_json::from_str(&text).map_err(|e| {
+            FaucetError::SdkError(format!("Invalid captcha response format: {}", e))
+        })?;
+
         // Check success field
         if !json["success"].as_bool().unwrap_or(false) {
             // Log error codes if present for debugging
             if let Some(error_codes) = json["error-codes"].as_array() {
-                let codes: Vec<String> = error_codes.iter()
+                let codes: Vec<String> = error_codes
+                    .iter()
                     .filter_map(|v| v.as_str().map(String::from))
                     .collect();
-                return Err(FaucetError::SdkError(format!("Captcha verification failed: {}", codes.join(", "))).into());
+                return Err(FaucetError::SdkError(format!(
+                    "Captcha verification failed: {}",
+                    codes.join(", ")
+                ))
+                .into());
             }
             return Err(FaucetError::InvalidCaptcha.into());
         }

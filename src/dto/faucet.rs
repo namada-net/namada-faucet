@@ -60,5 +60,6 @@ pub struct FaucetSettingResponse {
     pub start_at: i64,
     pub withdraw_limit: u64,
     pub faucet_address: String,
+    pub balance: String,
     pub tokens_alias_to_address: HashMap<String, String>,
 }
