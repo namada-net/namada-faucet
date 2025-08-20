@@ -34,6 +34,7 @@ pub async fn faucet_settings(
         chain_id: state.chain_id,
         start_at: state.chain_start,
         withdraw_limit: state.withdraw_limit,
+        faucet_address: state.faucet_address.clone().to_string(),
         tokens_alias_to_address: HashMap::from([(
             "NAM".to_string(),
             nam_token_address.to_string(),
