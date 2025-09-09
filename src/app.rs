@@ -74,20 +74,21 @@ impl ApplicationServer {
         }
 
         let url = Url::from_str(&rpc).expect("invalid RPC address");
-        let http_client = HttpClient::new(url).unwrap();
 
-        // Setup wallet storage
-        let wallet = FsWalletUtils::new("wallet".into());
+        let sdk = loop {
+            let http_client = HttpClient::new(url.clone()).unwrap();
+            let wallet = FsWalletUtils::new("wallet".into());
+            let shielded_ctx = FsShieldedUtils::new("masp".into());
+            let null_io = NullIo;
 
-        // Setup shielded context storage
-        let shielded_ctx = FsShieldedUtils::new("masp".into());
-
-        let null_io = NullIo;
-
-        let sdk = NamadaImpl::new(http_client, wallet, shielded_ctx, null_io)
-            .await
-            .expect("unable to initialize Namada context")
-            .chain_id(ChainId::from_str(&chain_id).unwrap());
+            match NamadaImpl::new(http_client.clone(), wallet, shielded_ctx, null_io).await {
+                Ok(sdk) => break sdk,
+                Err(_) => {
+                    tracing::warn!("Retrying to connect to the RPC at {url} in 10s...");
+                    sleep(Duration::from_secs(10)).await;
+                }
+            }
+        };
 
         let mut wallet = sdk.wallet.write().await;
         wallet
