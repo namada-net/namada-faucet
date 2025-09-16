@@ -26,9 +26,9 @@ pub async fn faucet_settings(
     State(state): State<FaucetState>,
 ) -> Result<Json<FaucetSettingResponse>, ApiError> {
     let client = &state.sdk.clone_client();
-    
+
     let nam_token_address = rpc::query_native_token(client).await.unwrap();
-    
+
     let faucet_address = state.faucet_address.clone();
     let faucet_balance = rpc::get_token_balance(client, &nam_token_address, &faucet_address, None)
         .await
@@ -112,7 +112,7 @@ pub async fn request_transfer(
         let captcha_token = payload
             .captcha_token
             .as_ref()
-            .ok_or_else(|| FaucetError::InvalidCaptcha)?;
+            .ok_or(FaucetError::InvalidCaptcha)?;
 
         // Ensure captcha token is not empty
         if captcha_token.trim().is_empty() {
@@ -205,21 +205,15 @@ pub async fn request_transfer(
 
     transfer_tx_builder.tx.memo = Some("Transfer from faucet".to_string().as_bytes().to_vec());
 
-    let tx_result = transfer_tx_builder
-        .build(&*state.sdk)
-        .await;
+    let tx_result = transfer_tx_builder.build(&*state.sdk).await;
 
     let (mut transfer_tx, signing_data) = match tx_result {
         Ok(res) => res,
         Err(e) => {
-            return Err(FaucetError::SdkError(format!(
-                "unable to build transfer tx: {}",
-                e
-            ))
-            .into())
+            return Err(FaucetError::SdkError(format!("unable to build transfer tx: {}", e)).into())
         }
     };
-    
+
     state
         .sdk
         .sign(

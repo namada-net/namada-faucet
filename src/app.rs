@@ -16,8 +16,8 @@ use axum::{
 };
 use lazy_static::lazy_static;
 use namada_sdk::{
-    address::Address, args::TxBuilder, chain::ChainId, io::NullIo, key::RefTo,
-    masp::fs::FsShieldedUtils, wallet::fs::FsWalletUtils, NamadaImpl,
+    address::Address, io::NullIo, key::RefTo, masp::fs::FsShieldedUtils, wallet::fs::FsWalletUtils,
+    NamadaImpl,
 };
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
 use serde_json::json;
