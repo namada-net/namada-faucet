@@ -52,15 +52,3 @@ axum-macros = "0.3.8"
 
 [build-dependencies]
 vergen = { version = "8.0.0", features = ["build", "git", "gitcl"] }
-
-[profile.ephemeral-build]
-inherits = "release"
-incremental = false
-lto = "thin"
-opt-level = 2
-codegen-units = 64
-strip = "symbols"
-debug = false
-
-[profile.release]
-incremental = false

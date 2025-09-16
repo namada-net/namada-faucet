@@ -16,8 +16,8 @@ use axum::{
 };
 use lazy_static::lazy_static;
 use namada_sdk::{
-    address::Address, io::NullIo, key::RefTo, masp::fs::FsShieldedUtils, wallet::fs::FsWalletUtils,
-    NamadaImpl,
+    address::Address, args::TxBuilder, chain::ChainId, io::NullIo, key::RefTo,
+    masp::fs::FsShieldedUtils, wallet::fs::FsWalletUtils, NamadaImpl,
 };
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
 use serde_json::json;
@@ -82,7 +82,10 @@ impl ApplicationServer {
             let null_io = NullIo;
 
             match NamadaImpl::new(http_client.clone(), wallet, shielded_ctx, null_io).await {
-                Ok(sdk) => break sdk,
+                Ok(mut sdk) => {
+                    sdk = sdk.chain_id(ChainId(chain_id.clone()));
+                    break sdk;
+                }
                 Err(_) => {
                     tracing::warn!("Retrying to connect to the RPC at {url} in 10s...");
                     sleep(Duration::from_secs(10)).await;

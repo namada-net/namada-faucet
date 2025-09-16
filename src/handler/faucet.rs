@@ -4,7 +4,7 @@ use axum::{extract::State, Json};
 use axum_macros::debug_handler;
 use namada_sdk::{
     address::Address,
-    args::{InputAmount, TxTransparentSource, TxTransparentTarget},
+    args::{InputAmount, TxBuilder, TxTransparentSource, TxTransparentTarget},
     io::NullIo,
     rpc,
     signing::default_sign,
@@ -202,17 +202,16 @@ pub async fn request_transfer(
     }];
 
     let mut transfer_tx_builder = state.sdk.new_transparent_transfer(sources, targets);
+    transfer_tx_builder =
+        transfer_tx_builder.memo("Transfer from faucet".to_string().as_bytes().to_vec());
 
-    transfer_tx_builder.tx.memo = Some("Transfer from faucet".to_string().as_bytes().to_vec());
-
-    let tx_result = transfer_tx_builder.build(&*state.sdk).await;
-
-    let (mut transfer_tx, signing_data) = match tx_result {
-        Ok(res) => res,
-        Err(e) => {
-            return Err(FaucetError::SdkError(format!("unable to build transfer tx: {}", e)).into())
-        }
-    };
+    let (mut transfer_tx, signing_data) = match transfer_tx_builder.build(&*state.sdk).await {
+        Ok(res) => Ok(res),
+        Err(e) => Err(FaucetError::SdkError(format!(
+            "unable to build transfer tx: {}",
+            e
+        ))),
+    }?;
 
     state
         .sdk
