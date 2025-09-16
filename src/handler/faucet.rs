@@ -205,10 +205,21 @@ pub async fn request_transfer(
 
     transfer_tx_builder.tx.memo = Some("Transfer from faucet".to_string().as_bytes().to_vec());
 
-    let (mut transfer_tx, signing_data) = transfer_tx_builder
+    let tx_result = transfer_tx_builder
         .build(&*state.sdk)
-        .await
-        .expect("unable to build transfer");
+        .await;
+
+    let (mut transfer_tx, signing_data) = match tx_result {
+        Ok(res) => res,
+        Err(e) => {
+            return Err(FaucetError::SdkError(format!(
+                "unable to build transfer tx: {}",
+                e
+            ))
+            .into())
+        }
+    };
+    
     state
         .sdk
         .sign(
